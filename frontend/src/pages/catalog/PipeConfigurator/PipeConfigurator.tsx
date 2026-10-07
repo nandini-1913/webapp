@@ -251,7 +251,7 @@ function PipeConfiguratorView({ groups, initialGroupIndex }: PipeConfiguratorArg
       <Body>
         <Media>
           <CategoryImage
-            imageAsset={group.imageAsset}
+            imageAsset={product.imageUrl ?? group.imageAsset}
             fallbackIcon={plumbingIcon}
             fallbackIconColor={theme.colors.outline}
             fallbackBackground={theme.colors.surfaceContainer}

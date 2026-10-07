@@ -4,9 +4,11 @@ import { AppRoutes } from '../../../routes/appRoutes';
 import type { CategoryBrowseArgs } from '../../../routes/appRoutes';
 import type { HomeCategory } from '../../../services/catalog/catalogModels';
 import catalogMock from '../../../mocks/catalog_mock_data.json';
+import { useCurrentLocation } from '../../../session/LocationContext';
 import { HomeDashboard } from '../../home/HomeDashboard';
 import { StorefrontHeader } from '../../../shared/StorefrontHeader';
 import { WebSideMenu } from '../../../shared/WebSideMenu';
+import type { WebSideMenuTab } from '../../../shared/WebSideMenu/WebSideMenu';
 import mock from './MainShell.mock.json';
 import {
   Shell,
@@ -41,13 +43,33 @@ const tabIndex = (tab?: string) =>
 export function MainShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  const {
+    currentLocation,
+    addressLookupStatus,
+    addressError: reverseGeocodeError,
+    requestCurrentLocation,
+  } = useCurrentLocation();
   const requestedTab = (location.state as { tab?: string } | null)?.tab;
-  const [index, setIndex] = useState(() => tabIndex(requestedTab));
+  const [selection, setSelection] = useState<{ key: string; index: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const activeIndex = selection?.key === location.key ? selection.index : tabIndex(requestedTab);
+  const selectTab = (tab: WebSideMenuTab) =>
+    setSelection({ key: location.key, index: tabs.indexOf(tab) });
 
-  // Header icons (e.g. Wishlist) open a tab via router state, also while already on this page.
   useEffect(() => {
-    if (requestedTab) setIndex(tabIndex(requestedTab));
-  }, [requestedTab, location.key]);
+    let active = true;
+    requestCurrentLocation().then(
+      () => active && setLocationError(null),
+      (error: unknown) => {
+        if (active) {
+          setLocationError(error instanceof Error ? error.message : 'Unable to get your location.');
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [requestCurrentLocation]);
 
   const openCategory = (category: HomeCategory) => {
     const args: CategoryBrowseArgs = { categoryId: category.id };
@@ -55,23 +77,26 @@ export function MainShell() {
   };
   const openAiAssistant = () => navigate(AppRoutes.aiAssistant);
 
-  const showAi = index === 0;
-  const current = tabs[index];
+  const showAi = activeIndex === 0;
+  const current = tabs[activeIndex];
 
   return (
     <Shell>
       <StorefrontHeader webOnly />
 
       <ShellBody>
-        <WebSideMenu
-          activeTab={current.tab}
-          onSelectTab={(tab) => setIndex(tabs.indexOf(tab))}
-          showAi={showAi}
-        />
+        <WebSideMenu activeTab={current.tab} onSelectTab={selectTab} showAi={showAi} />
 
         <Main>
-          {index === 0 ? (
-            <HomeDashboard categories={allCategories} onCategoryTap={openCategory} />
+          {activeIndex === 0 ? (
+            <HomeDashboard
+              categories={allCategories}
+              currentLocation={currentLocation}
+              addressLookupStatus={addressLookupStatus}
+              addressError={reverseGeocodeError}
+              locationError={locationError}
+              onCategoryTap={openCategory}
+            />
           ) : (
             // Tabs 1–2 are not converted yet — Flutter `_TabScaffold` title only.
             <>
@@ -100,11 +125,11 @@ export function MainShell() {
           <BottomNavItem
             key={tab.tab}
             type="button"
-            $active={i === index}
-            aria-current={i === index ? 'page' : undefined}
-            onClick={() => setIndex(i)}
+            $active={i === activeIndex}
+            aria-current={i === activeIndex ? 'page' : undefined}
+            onClick={() => setSelection({ key: location.key, index: i })}
           >
-            <BottomNavIndicator $active={i === index}>
+            <BottomNavIndicator $active={i === activeIndex}>
               <i className={`pi ${tab.icon}`} aria-hidden="true" />
             </BottomNavIndicator>
             <BottomNavLabel>{tab.label}</BottomNavLabel>

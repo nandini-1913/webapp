@@ -172,7 +172,7 @@ export const LocationAddress = styled.span`
   ${({ theme }) => textStyle(theme.typography.bodySmall)}
 `;
 
-export const SearchBar = styled.div`
+export const SearchBar = styled.form`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.space1}px;
@@ -196,33 +196,25 @@ export const SearchBar = styled.div`
   }
 `;
 
-/** The Flutter search bar is a tap target that opens /search, not an input. */
-export const SearchField = styled.button`
-  ${resetButton}
+export const SearchField = styled.input`
+  appearance: none;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  font: inherit;
+  outline: none;
   flex: 1;
   min-width: 0;
   align-self: stretch;
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.space3}px;
   padding-left: ${({ theme }) => theme.spacing.space4}px;
   border-radius: inherit;
   color: ${({ theme }) => theme.colors.primary};
-  text-align: left;
-  ${focusRing}
+  cursor: text;
 
-  i {
-    font-size: 18px;
+  &::placeholder {
+    ${({ theme }) => textStyle(theme.typography.bodyMedium)}
+    color: ${({ theme }) => theme.colors.outline};
   }
-`;
-
-export const SearchPlaceholder = styled.span`
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  ${({ theme }) => textStyle(theme.typography.bodyMedium)}
-  color: ${({ theme }) => theme.colors.outline};
 `;
 
 export const SearchAction = styled.button`

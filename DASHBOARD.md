@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-This repository contains a React Native + Expo admin dashboard and a FastAPI + MongoDB backend for a sanitary-ware and building-material business.
+This repository contains a Vite/React storefront, a FastAPI + MongoDB backend, and handoff notes for the separate admin workflow of a sanitary-ware and building-material business. The current browser app lives under `frontend/src`; it is not the React Native + Expo layout described in the older repository map below.
 
 The system manages:
 
@@ -53,7 +53,9 @@ The reward design document is a blueprint for ledger-based rewards. It does not 
 
 Future work should be based on the specification files and the existing API contract. Do not assume a phase is complete merely because a screen exists; verify backend behavior and tests too.
 
-## Repository Layout
+## Legacy Admin Handoff Layout
+
+The tree below documents the older Expo admin client and is not the current Vite storefront source.
 
 ```text
 backend/
@@ -101,20 +103,18 @@ DASHBOARD.md                        This handoff guide
 Backend:
 
 ```bash
-cd /home/lenovo/Dashboard/backend
-source .venv/bin/activate
-uvicorn server:app --host 0.0.0.0 --port 8000
+cd backend
+python -m uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
 Frontend:
 
 ```bash
-cd /home/lenovo/Dashboard/frontend
-yarn install
-yarn start
+npm install
+npm run dev
 ```
 
-The frontend API URL is configured in [frontend/src/config/env.ts](frontend/src/config/env.ts). For a local Android emulator, the current setting uses `http://10.0.2.2:8000`. For a physical phone, use the host machine LAN IP.
+The Vite storefront uses `VITE_API_BASE_URL` as the backend origin. It defaults to `http://187.127.148.44`; override it in `frontend/.env.local` for another deployment. The FastAPI server must be reachable from the browser and allow the storefront's origin through CORS.
 
 ## API Conventions
 
@@ -132,7 +132,7 @@ Failed response:
 {"success": false, "data": null, "error": "Reason"}
 ```
 
-Frontend API calls should go through `frontend/src/api/endpoints.ts` and `apiRequest()` in `frontend/src/api/client.ts`. Admin bearer tokens are attached automatically by the client.
+The Vite storefront's Pipes & Fitting catalog and product search calls are implemented in `frontend/src/services/catalog/pipesFittingRepository.ts`. The repository validates the standard response envelope and does not substitute mock products when the API fails. Browser location permission is requested by the storefront and coordinates are saved locally. The location is reverse-geocoded through OpenStreetMap Nominatim so the location screen and dashboard can show a readable address; this sends the selected coordinates to Nominatim, and the app retains coordinates as a fallback if address lookup is unavailable.
 
 ## MongoDB
 
@@ -194,6 +194,23 @@ A product may contain:
 - `imageUrl` and `imageName`
 
 Product images are currently stored as data URLs in `imageUrl`. This is convenient for the current prototype and makes the field usable by both web and mobile clients. For production, consider object storage and a URL field instead of storing large base64 values in MongoDB.
+
+### Storefront Pipes & Fitting Workflow
+
+1. The user opens Pipes & Fitting from the category browser.
+2. On every entry, the screen reads `GET /api/categories`, identifies the Pipes & Fitting category (also accepting the current legacy names Pipes & Tubing and Plumbing Pipes & Fittings), then requests its `GET /api/catalog?category=...` records and `GET /api/subcategories`; responses are not cached.
+3. Catalog rows are grouped for the existing type/subcategory/class browsing UI. Names, brand, backend product IDs, rates, units, discounts, and available size/class/type details come from the API response. Brand, size, and class filter options are derived from those fetched products.
+4. Selecting a product group opens the configurator; the cart item keeps the backend product and category/subcategory IDs.
+5. A request or response error is shown on the page. The screen never falls back to `pipes_fitting_mock_data.json`.
+
+The JSON file beside the Pipes & Fitting screen now contains presentation configuration only (for example sidebar images and sort labels), not product or filter-option data.
+
+### Current Location and Search
+
+- On entering the home shell or the location screen, the browser requests a fresh high-accuracy geolocation fix. The user can deny permission; the dashboard shows that location is unavailable rather than a fabricated default address.
+- Coordinates and fix accuracy are saved in browser local storage and displayed on the dashboard. Tapping/dragging the map changes the selected coordinates. The app does not send coordinates to an external reverse-geocoding provider.
+- Browser geolocation requires a secure context (HTTPS, or localhost during development) and user permission.
+- Header/home/category search opens the backend-powered product search. The home microphone invokes browser speech recognition; the QR/barcode control invokes camera scanning when `BarcodeDetector` is supported. Both run their recognized text/code through `GET /api/catalog?search=...`.
 
 ## Reward System
 

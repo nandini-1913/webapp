@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppRoutes } from '../../routes/appRoutes';
 import { useCart } from '../../session/CartContext';
@@ -10,6 +12,8 @@ import {
   BrandText,
   BrandName,
   SearchPill,
+  SearchInput,
+  SearchSubmit,
   HeaderActions,
   AccountButton,
   CartButton,
@@ -36,7 +40,12 @@ interface StorefrontHeaderProps {
 export function StorefrontHeader({ webOnly, sticky = true }: StorefrontHeaderProps) {
   const navigate = useNavigate();
   const { items } = useCart();
+  const [query, setQuery] = useState('');
   const count = items.length;
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    navigate(AppRoutes.search, query.trim() ? { state: { query: query.trim() } } : undefined);
+  };
 
   return (
     <Header $webOnly={webOnly} $sticky={sticky}>
@@ -54,9 +63,17 @@ export function StorefrontHeader({ webOnly, sticky = true }: StorefrontHeaderPro
             </BrandName>
           </BrandText>
         </Brand>
-        <SearchPill type="button" onClick={() => navigate(AppRoutes.search)}>
-          <span>{_searchPlaceholder}</span>
-          <i className="pi pi-search" aria-hidden />
+        <SearchPill onSubmit={submitSearch} role="search">
+          <SearchInput
+            type="search"
+            aria-label="Search products"
+            placeholder={_searchPlaceholder}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <SearchSubmit type="submit" aria-label="Search products">
+            <i className="pi pi-search" aria-hidden />
+          </SearchSubmit>
         </SearchPill>
         <HeaderActions>
           <AccountButton type="button" onClick={() => navigate(AppRoutes.profile)}>

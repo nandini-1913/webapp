@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'styled-components';
-import { TileLayer } from 'react-leaflet';
+import { TileLayer, useMapEvents } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { AppRoutes } from '../../../routes/appRoutes';
 import type { SignupFlowArgs } from '../../../routes/appRoutes';
+import { useCurrentLocation } from '../../../session/LocationContext';
+import type { CurrentLocation } from '../../../session/LocationContext';
 import { CircularProgress } from '../../../shared/CircularProgress';
 import { LoginFlowContinueButton } from '../../../shared/LoginFlowContinueButton';
 import chooseLocationMock from './ChooseLocation.mock.json';
@@ -25,8 +27,6 @@ import {
   Sheet,
   Title,
   Subtitle,
-  SearchField,
-  SearchHint,
   AddressCard,
   Switched,
   LocatedRow,
@@ -43,8 +43,35 @@ import {
   CTA_SPINNER_STROKE,
 } from './ChooseLocation.styles';
 
-const { _mockPlace: mockPlace, _defaultCenter: defaultCenter } = chooseLocationMock;
-const center: [number, number] = [defaultCenter.latitude, defaultCenter.longitude];
+const genericMapCenter: [number, number] = [20.5937, 78.9629];
+
+function MapLocationEvents({
+  onLocationSelected,
+}: {
+  onLocationSelected: (location: CurrentLocation) => void;
+}) {
+  useMapEvents({
+    click: (event) => {
+      event.target.setView(event.latlng, event.target.getZoom(), { animate: true });
+      onLocationSelected({
+        latitude: event.latlng.lat,
+        longitude: event.latlng.lng,
+        accuracy: 0,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    dragend: (event) => {
+      const center = event.target.getCenter();
+      onLocationSelected({
+        latitude: center.lat,
+        longitude: center.lng,
+        accuracy: 0,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+  });
+  return null;
+}
 
 /** AppRouter fallback when no SignupFlowArgs are passed. */
 const fallbackArgs: SignupFlowArgs = { mobileNumber: '', fullName: '' };
@@ -57,14 +84,25 @@ export function ChooseLocation() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const {
+    currentLocation,
+    addressLookupStatus,
+    addressError,
+    saveLocation,
+    requestCurrentLocation,
+  } = useCurrentLocation();
   const args = (location.state as SignupFlowArgs | null) ?? fallbackArgs;
   const isLocationUpdate = args.isLocationUpdate ?? false;
 
-  const [locating, setLocating] = useState(false);
-  const [located, setLocated] = useState(false);
+  const [locating, setLocating] = useState(currentLocation == null);
+  const [located, setLocated] = useState(currentLocation != null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const locatingRef = useRef(false);
   const mountedRef = useRef(true);
+  const initialCenter: [number, number] = currentLocation
+    ? [currentLocation.latitude, currentLocation.longitude]
+    : genericMapCenter;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -73,20 +111,38 @@ export function ChooseLocation() {
     };
   }, []);
 
-  const handleUseCurrentLocation = async () => {
+  const handleUseCurrentLocation = useCallback(async () => {
     if (locatingRef.current) return;
     locatingRef.current = true;
     setLocating(true);
-    setLocated(false);
+    setLocationError(null);
+    try {
+      const selected = await requestCurrentLocation();
+      if (!mountedRef.current) return;
+      mapRef.current?.setView(
+        [selected.latitude, selected.longitude],
+        chooseLocationMock.locatedZoom,
+        { animate: false },
+      );
+      setLocated(true);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      setLocationError(error instanceof Error ? error.message : 'Could not get your location.');
+    } finally {
+      locatingRef.current = false;
+      if (mountedRef.current) setLocating(false);
+    }
+  }, [requestCurrentLocation]);
 
-    await new Promise((resolve) => setTimeout(resolve, chooseLocationMock.locateDelayMs));
-    locatingRef.current = false;
-    if (!mountedRef.current) return;
+  useEffect(() => {
+    const timer = window.setTimeout(() => void handleUseCurrentLocation(), 0);
+    return () => window.clearTimeout(timer);
+  }, [handleUseCurrentLocation]);
 
-    // _mapController.move(_defaultCenter, 16)
-    mapRef.current?.setView(center, chooseLocationMock.locatedZoom, { animate: false });
-    setLocating(false);
+  const handleMapLocationSelected = (selected: CurrentLocation) => {
+    saveLocation(selected);
     setLocated(true);
+    setLocationError(null);
   };
 
   const handleContinue = () => {
@@ -104,10 +160,11 @@ export function ChooseLocation() {
         <MapArea>
           <MapSurface
             ref={mapRef}
-            center={center}
+            center={initialCenter}
             zoom={chooseLocationMock.initialZoom}
             zoomControl={false}
           >
+            <MapLocationEvents onLocationSelected={handleMapLocationSelected} />
             <TileLayer
               url={chooseLocationMock.tileLayer.urlTemplate}
               attribution={chooseLocationMock.tileLayer.attribution}
@@ -158,10 +215,7 @@ export function ChooseLocation() {
             Drag the map or search to place the pin exactly where you'd like deliveries and site
             visits.
           </Subtitle>
-          <SearchField>
-            <i className="pi pi-search" />
-            <SearchHint>Search area, street or landmark</SearchHint>
-          </SearchField>
+          {locationError && <Subtitle role="alert">{locationError}</Subtitle>}
           <AddressCard>
             {located ? (
               <Switched key="located">
@@ -174,8 +228,21 @@ export function ChooseLocation() {
                       Current location
                       <i className="pi pi-check-circle" />
                     </CurrentLocationLabel>
-                    <Line1 $gapTop>{mockPlace.line1}</Line1>
-                    <Line2>{mockPlace.line2}</Line2>
+                    <Line1 $gapTop>
+                      {addressLookupStatus === 'loading'
+                        ? 'Finding your address…'
+                        : (currentLocation?.address ??
+                          (currentLocation
+                            ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
+                            : 'Selected map location'))}
+                    </Line1>
+                    <Line2>
+                      {addressError
+                        ? `${addressError}${currentLocation ? ` Coordinates: ${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}` : ''}`
+                        : currentLocation && currentLocation.accuracy > 0
+                          ? `Location accuracy ±${Math.round(currentLocation.accuracy)} m · © OpenStreetMap contributors`
+                          : 'Tap or drag the map to adjust your location · © OpenStreetMap contributors'}
+                    </Line2>
                   </TextColumn>
                 </LocatedRow>
               </Switched>
