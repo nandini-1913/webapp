@@ -46,6 +46,7 @@ export function CreateAccount() {
       fullName: name.trim(),
       email: email.trim(),
       referralCode: referralCode === '' ? undefined : referralCode,
+      userId: args.userId,
     };
     navigate(AppRoutes.chooseLocation, { state: nextArgs });
   };

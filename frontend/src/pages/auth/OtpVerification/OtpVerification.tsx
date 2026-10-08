@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AppRoutes } from '../../../routes/appRoutes';
 import type { OtpVerificationArgs, SignupFlowArgs } from '../../../routes/appRoutes';
 import { useSession } from '../../../session/SessionContext';
-import { mockAuthService } from '../../../services/auth/mockAuthService';
+import {
+  confirmFirebaseOtp,
+  firebaseAuthMessage,
+  sendFirebaseOtp,
+  userFromFirebase,
+} from '../../../services/auth/phoneAuth';
 import { AuthOtpFields } from '../../../shared/AuthOtpFields';
 import type { AuthOtpFieldsHandle } from '../../../shared/AuthOtpFields';
 import { LoginFlowBackButton } from '../../../shared/LoginFlowBackButton';
@@ -30,7 +35,7 @@ import {
   ResendLink,
 } from './OtpVerification.styles';
 
-const { otpLength, otpResendSeconds, mockOtp } = mockData.appConstants;
+const { otpLength, otpResendSeconds } = mockData.appConstants;
 
 // app_router.dart falls back to these args when none are passed.
 const DEFAULT_ARGS = otpMock.defaultArgs as OtpVerificationArgs;
@@ -84,41 +89,52 @@ export function OtpVerification() {
     setLoading(true);
     setError(null);
 
-    const result = await mockAuthService.verifyOtp({ mobileNumber: rawMobile, otp: value });
-    if (!mounted.current) return;
-    setLoading(false);
+    try {
+      const user = await confirmFirebaseOtp(value);
+      if (!mounted.current) return;
+      setLoading(false);
 
-    if (!result.success) {
-      setError(result.message ?? 'Invalid OTP');
-      // As in Flutter, clear() reports '' through onChanged, which also resets the error.
-      otpRef.current?.clear();
-      return;
-    }
-
-    switch (args.purpose) {
-      case 'mobileLogin':
-        // Existing user — verified mock account already carries a profile,
-        // so skip straight to the home shell instead of the signup steps.
-        if (result.user) setFromAuth(result.user);
-        // pushNamedAndRemoveUntil(main, (_) => false)
-        navigate(AppRoutes.main, { replace: true });
-        return;
-      case 'registration': {
-        const signupArgs: SignupFlowArgs = { mobileNumber: rawMobile, fullName: '' };
-        // pushReplacementNamed(createAccount)
-        navigate(AppRoutes.createAccount, { replace: true, state: signupArgs });
-        return;
+      switch (args.purpose) {
+        case 'mobileLogin':
+          setFromAuth(userFromFirebase(user, rawMobile));
+          navigate(AppRoutes.main, { replace: true });
+          return;
+        case 'registration': {
+          const authUser = userFromFirebase(user, rawMobile);
+          setFromAuth(authUser);
+          const signupArgs: SignupFlowArgs = {
+            mobileNumber: authUser.mobileNumber ?? rawMobile,
+            fullName: authUser.fullName ?? '',
+            userId: authUser.id,
+          };
+          navigate(AppRoutes.createAccount, { replace: true, state: signupArgs });
+          return;
+        }
       }
+    } catch (error) {
+      if (!mounted.current) return;
+      setLoading(false);
+      setError(firebaseAuthMessage(error));
+      otpRef.current?.clear();
     }
   };
 
   const resend = async () => {
-    await mockAuthService.sendOtp({ mobileNumber: rawMobile });
+    try {
+      await sendFirebaseOtp(rawMobile);
+    } catch (error) {
+      if (!mounted.current) return;
+      setSnackBar({ id: Date.now(), message: firebaseAuthMessage(error) });
+      return;
+    }
     if (!mounted.current) return;
     otpRef.current?.clear();
     setError(null);
     startTimer();
-    setSnackBar({ id: Date.now(), message: `Verification code resent (use ${mockOtp})` });
+    setSnackBar({
+      id: Date.now(),
+      message: 'Verification code resent. Enter the OTP set for this test number in Firebase.',
+    });
   };
 
   return (

@@ -47,6 +47,8 @@ export interface OtpVerificationArgs {
 export interface SignupFlowArgs {
   mobileNumber: string;
   fullName: string;
+  /** Firebase uid from the verified phone sign-in. */
+  userId?: string;
   email?: string;
   /** Optional referral code entered during signup. */
   referralCode?: string;

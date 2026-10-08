@@ -4,12 +4,14 @@ import { AppRoutes } from '../../../routes/appRoutes';
 import type { OtpVerificationArgs } from '../../../routes/appRoutes';
 import { useSession } from '../../../session/SessionContext';
 import { mockAuthService } from '../../../services/auth/mockAuthService';
+import { firebaseAuthMessage, sendFirebaseOtp } from '../../../services/auth/phoneAuth';
 import { AuthValidators } from '../../../shared/authValidators';
 import { LoginFlowIconBadge } from '../../../shared/LoginFlowIconBadge';
 import { LoginFlowModeToggle } from '../../../shared/LoginFlowModeToggle';
 import { LoginFlowPhoneField } from '../../../shared/LoginFlowPhoneField';
 import { LoginFlowContinueButton } from '../../../shared/LoginFlowContinueButton';
 import { LoginFlowTermsFooter } from '../../../shared/LoginFlowTermsFooter';
+import { SnackBar } from '../../../shared/SnackBar';
 import { AuthWebLayout } from '../../../shared/AuthWebLayout';
 import mockData from '../../../mocks/mockData.json';
 import loginMock from './Login.mock.json';
@@ -34,6 +36,7 @@ export function Login() {
   const [mobile, setMobile] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [snackBar, setSnackBar] = useState<{ id: number; message: string } | null>(null);
 
   // Flutter `mounted` check after awaits.
   const mounted = useRef(true);
@@ -51,7 +54,14 @@ export function Login() {
     if (AuthValidators.mobile(value) !== null) return;
 
     setLoading(true);
-    await mockAuthService.sendOtp({ mobileNumber: value });
+    try {
+      await sendFirebaseOtp(value);
+    } catch (error) {
+      if (!mounted.current) return;
+      setLoading(false);
+      setSnackBar({ id: Date.now(), message: firebaseAuthMessage(error) });
+      return;
+    }
     if (!mounted.current) return;
     setLoading(false);
 
@@ -104,6 +114,13 @@ export function Login() {
           <Spacer $flex={3} />
           <LoginFlowTermsFooter />
         </Content>
+        {snackBar && (
+          <SnackBar
+            key={snackBar.id}
+            message={snackBar.message}
+            onDismissed={() => setSnackBar(null)}
+          />
+        )}
       </Screen>
     </AuthWebLayout>
   );

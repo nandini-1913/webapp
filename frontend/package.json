@@ -13,6 +13,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "leaflet": "^1.9.4",
     "primeicons": "^8.0.2",
     "react": "^19.2.8",
