@@ -77,7 +77,7 @@ export function firebaseAuthMessage(error: unknown): string {
 
   switch (code) {
     case 'auth/operation-not-allowed':
-      return 'Firebase is blocking SMS for this number’s country. In Firebase Console open Authentication → Settings → SMS region policy, choose Allow, and add Jamaica (JM). Then try +1 876-940-6339 again.';
+      return 'Firebase is blocking SMS for this number’s country. Enter 8769406319 or 8769406339 so the number is sent as +1. For a real number, allow that country under Authentication → Settings → SMS region policy.';
     case 'auth/invalid-phone-number':
       return 'This number is not valid for verification.';
     case 'auth/too-many-requests':
