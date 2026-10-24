@@ -30,15 +30,19 @@ export const AppRoutes = {
   payment: '/checkout/payment',
   /** Flutter `AppRoutes.orderConfirmation` — step 4; router state is `OrderConfirmationArgs`. */
   orderConfirmation: '/checkout/confirmation',
-} as const;
 
-/** Flutter `OtpPurpose` (passwordReset dropped with screens 7–9). */
-export type OtpPurpose = 'registration' | 'mobileLogin';
+  /** Web-only company pages linked from `StorefrontFooter` (stubs for now). */
+  about: '/about',
+  contact: '/contact',
+  privacyPolicy: '/privacy-policy',
+  terms: '/terms',
+  cancellationRefunds: '/cancellation-refunds',
+  shippingDelivery: '/shipping-delivery',
+} as const;
 
 /** Flutter `OtpVerificationArgs` — passed as router `state`. */
 export interface OtpVerificationArgs {
   contactDisplay: string;
-  purpose: OtpPurpose;
   /** Raw mobile digits for the signup flow after OTP. */
   mobileNumber?: string;
 }
@@ -47,8 +51,6 @@ export interface OtpVerificationArgs {
 export interface SignupFlowArgs {
   mobileNumber: string;
   fullName: string;
-  /** Firebase uid from the verified phone sign-in. */
-  userId?: string;
   email?: string;
   /** Optional referral code entered during signup. */
   referralCode?: string;
@@ -59,4 +61,5 @@ export interface SignupFlowArgs {
 /** Flutter `CategoryBrowseArgs` — passed as router `state`. */
 export interface CategoryBrowseArgs {
   categoryId: string;
+  categoryName?: string;
 }

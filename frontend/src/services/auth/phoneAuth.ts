@@ -1,100 +1,100 @@
 import {
+  getAdditionalUserInfo,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   type ConfirmationResult,
   type User,
 } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { toE164 } from '../../shared/phoneNumber';
+import { auth, requireFirebaseConfig } from '../../firebase';
 import type { AuthUser } from './authModels';
 
-const RECAPTCHA_ID = 'firebase-recaptcha';
+const RECAPTCHA_CONTAINER_ID = 'firebase-recaptcha';
 
 let confirmationResult: ConfirmationResult | null = null;
 let recaptchaVerifier: RecaptchaVerifier | null = null;
 
-function recaptchaContainer(): HTMLElement {
-  document.getElementById(RECAPTCHA_ID)?.remove();
-  const container = document.createElement('div');
-  container.id = RECAPTCHA_ID;
-  document.body.appendChild(container);
-  return container;
+function toE164(mobileNumber: string): string {
+  const digits = mobileNumber.replace(/\D/g, '');
+  const localNumber = digits.startsWith('91') && digits.length === 12 ? digits.slice(2) : digits;
+  return `+91${localNumber}`;
 }
 
-function clearVerifier() {
-  try {
-    recaptchaVerifier?.clear();
-  } catch {
-    // Widget was already removed.
-  }
+function clearRecaptcha() {
+  recaptchaVerifier?.clear();
   recaptchaVerifier = null;
-  document.getElementById(RECAPTCHA_ID)?.remove();
 }
 
-/**
- * Starts Firebase phone sign-in. Test numbers registered in the Firebase
- * console do not receive an SMS; the code is the one set next to that number.
- */
-export async function sendFirebaseOtp(mobileNumber: string): Promise<void> {
-  clearVerifier();
-  recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainer(), {
+export async function sendPhoneOtp(mobileNumber: string): Promise<void> {
+  requireFirebaseConfig();
+  clearRecaptcha();
+
+  if (!document.getElementById(RECAPTCHA_CONTAINER_ID)) {
+    throw new Error('Phone verification could not start. Reload the page and try again.');
+  }
+
+  recaptchaVerifier = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
     size: 'invisible',
   });
+
   try {
-    confirmationResult = await signInWithPhoneNumber(
-      auth,
-      toE164(mobileNumber),
-      recaptchaVerifier,
-    );
+    confirmationResult = await signInWithPhoneNumber(auth, toE164(mobileNumber), recaptchaVerifier);
+    clearRecaptcha();
   } catch (error) {
-    clearVerifier();
-    confirmationResult = null;
+    clearRecaptcha();
     throw error;
   }
 }
 
-export async function confirmFirebaseOtp(code: string): Promise<User> {
+export async function confirmPhoneOtp(code: string): Promise<{ user: User; isNewUser: boolean }> {
   if (!confirmationResult) {
-    throw new Error('Request a verification code first.');
+    throw new Error('Request a verification code before entering an OTP.');
   }
-  return (await confirmationResult.confirm(code)).user;
+
+  const credential = await confirmationResult.confirm(code);
+  confirmationResult = null;
+
+  return {
+    user: credential.user,
+    isNewUser: getAdditionalUserInfo(credential)?.isNewUser ?? false,
+  };
 }
 
-export function userFromFirebase(user: User, mobileNumber: string): AuthUser {
+export function toAuthUser(user: User): AuthUser {
   return {
     id: user.uid,
     email: user.email ?? '',
     fullName: user.displayName,
-    mobileNumber: user.phoneNumber ?? toE164(mobileNumber),
+    mobileNumber: user.phoneNumber,
   };
 }
 
 export function firebaseAuthMessage(error: unknown): string {
   const code =
     typeof error === 'object' && error !== null && 'code' in error
-      ? String((error as { code: unknown }).code)
+      ? String(error.code)
       : '';
 
   switch (code) {
-    case 'auth/operation-not-allowed':
-      return 'Firebase is blocking SMS for this number’s country. Enter 8769406319 or 8769406339 so the number is sent as +1. For a real number, allow that country under Authentication → Settings → SMS region policy.';
     case 'auth/invalid-phone-number':
-      return 'This number is not valid for verification.';
-    case 'auth/too-many-requests':
-    case 'auth/quota-exceeded':
-      return 'Too many attempts. Wait a moment and try again.';
+      return 'Enter a valid mobile number.';
     case 'auth/invalid-verification-code':
-      return 'That code does not match. Enter the OTP set for this test number in Firebase.';
-    case 'auth/invalid-verification-id':
+      return 'That verification code is incorrect. Check it and try again.';
     case 'auth/code-expired':
     case 'auth/session-expired':
-      return 'This code has expired. Request a new one.';
+    case 'auth/invalid-verification-id':
+      return 'That verification code has expired. Request a new code.';
+    case 'auth/too-many-requests':
+    case 'auth/quota-exceeded':
+      return 'Too many attempts. Wait a while before trying again.';
+    case 'auth/operation-not-allowed':
+      return 'Phone sign-in is not enabled for this Firebase project.';
     case 'auth/invalid-app-credential':
     case 'auth/captcha-check-failed':
-    case 'auth/missing-client-identifier':
-      return 'Verification could not start. Use a phone number added under Firebase test numbers, then enter its OTP.';
+      return 'App verification failed. Check the Firebase authorized domains and try again.';
+    case 'auth/billing-not-enabled':
+      return 'Firebase phone authentication requires billing to be enabled for this project.';
     default:
       if (error instanceof Error && error.message) return error.message;
-      return 'Could not verify this number. Try again.';
+      return 'Phone verification failed. Please try again.';
   }
 }

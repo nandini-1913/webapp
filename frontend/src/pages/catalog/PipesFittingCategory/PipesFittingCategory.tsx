@@ -13,7 +13,7 @@ import type { PipesFittingCatalog } from '../../../services/catalog/pipesFitting
 import { groupMinMrp, pipeSizeMmValue } from '../../../services/catalog/pipeCategoryGroups';
 import type { CategoryProductGroup } from '../../../services/catalog/pipeCategoryGroups';
 import type { PipeConfiguratorArgs } from '../PipeConfigurator';
-import pipesConfig from './PipesFittingCategory.config.json';
+import pipesMock from './PipesFittingCategory.mock.json';
 import {
   Screen,
   AppHeaderSlot,
@@ -76,7 +76,7 @@ import {
   CardTitle,
 } from './PipesFittingCategory.styles';
 
-// ── Screen configuration ────────────────────────────────────────────────
+// ── Mock-driven constants ───────────────────────────────────────────────
 
 /** Flutter `_CatSection`. */
 type CatSection = 'all' | 'upvc' | 'pvc' | 'cpvc';
@@ -91,12 +91,19 @@ interface CatSectionMeta {
   typeName: string | null;
 }
 
-const sidebarImages = pipesConfig._CatSidebarImages;
-const sections = pipesConfig._sections as CatSectionMeta[];
-const sortOptions = pipesConfig._SortDropdownMenu._options as {
+const sidebarImages = pipesMock._CatSidebarImages;
+const sections = pipesMock._sections as CatSectionMeta[];
+const sortOptions = pipesMock._SortDropdownMenu._options as {
   sort: PipeModuleSort;
   label: string;
 }[];
+const filterSizes = [
+  ...pipesMock.PipeFilterSizes.leftColumn,
+  ...pipesMock.PipeFilterSizes.rightColumn,
+];
+const filterBrands = pipesMock.PipeFilterBrands.names;
+const filterClassesByType = pipesMock.PipeFilterClasses.byType as Record<string, string[]>;
+const { unit: groupUnit, discountLabel } = pipesMock._CategoryProductGroup;
 
 /** Flutter `Icons.plumbing_rounded` has no primeicons match — nearest glyph. */
 const plumbingIcon = 'pi-wrench';
@@ -149,22 +156,15 @@ function groupsForSection(
       }
       for (const cls of sub.classes) {
         if (cls.products.length === 0) continue;
-        const titleParts = [
-          type.type === 'Other' ? null : type.type,
-          sub.subCategory === 'Other' ? null : sub.subCategory,
-          cls.className === 'Products' ? null : `(${cls.className})`,
-        ].filter((part): part is string => part != null);
+        const groupImage =
+          cls.products.map((p) => p.imageUrl?.trim()).find(Boolean) ?? imageForType(type.type);
         groups.push({
-          title: titleParts.join(' ') || 'Products',
-          categoryId: catalog.categoryId,
-          categoryName: catalog.category,
+          title: `${type.type} ${sub.subCategory} (${cls.className})`,
           subCategory: sub.subCategory,
-          subcategoryId: cls.products[0].subcategoryId,
           className: cls.className,
           products: cls.products,
-          imageAsset:
-            cls.products.find((product) => product.imageUrl)?.imageUrl ?? imageForType(type.type),
-          unit: cls.products[0].unit,
+          imageAsset: groupImage,
+          unit: groupUnit,
         });
       }
     }
@@ -186,54 +186,21 @@ function matchesSize(group: CategoryProductGroup, sizeLabel: string): boolean {
   });
 }
 
-/** Available classes are derived from the current backend response. */
-function classesForType(catalog: PipesFittingCatalog, typeName: string | null): string[] {
+/** `PipeFilterClasses.forType` — the Type's classes, or every distinct class for All. */
+function classesForType(typeName: string | null): string[] {
+  if (typeName != null) return filterClassesByType[typeName] ?? [];
   const names: string[] = [];
-  for (const type of catalog.types) {
-    if (typeName != null && type.type !== typeName) continue;
-    for (const subCategory of type.subCategories) {
-      for (const productClass of subCategory.classes) {
-        if (!names.includes(productClass.className)) names.push(productClass.className);
-      }
-    }
+  for (const classes of Object.values(filterClassesByType)) {
+    for (const name of classes) if (!names.includes(name)) names.push(name);
   }
   return names;
 }
 
+/** `PipeFilterClasses.matches` — case- and space-insensitive, so "4kg" equals "4 kg". */
 const classMatches = (a: string, b: string) =>
   a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
 
 const pluralize = (value: string) => (value.toLowerCase().endsWith('s') ? value : `${value}s`);
-
-function sizesInCatalog(catalog: PipesFittingCatalog): string[] {
-  const sizes = new Set<string>();
-  for (const type of catalog.types) {
-    for (const subCategory of type.subCategories) {
-      for (const productClass of subCategory.classes) {
-        for (const product of productClass.products) {
-          if (product.size) sizes.add(product.size);
-        }
-      }
-    }
-  }
-  return [...sizes].sort(
-    (a, b) => (pipeSizeMmValue(a) ?? Number.MAX_VALUE) - (pipeSizeMmValue(b) ?? Number.MAX_VALUE),
-  );
-}
-
-function brandsInCatalog(catalog: PipesFittingCatalog): string[] {
-  const brands = new Set<string>();
-  for (const type of catalog.types) {
-    for (const subCategory of type.subCategories) {
-      for (const productClass of subCategory.classes) {
-        for (const product of productClass.products) {
-          if (product.brand) brands.add(product.brand);
-        }
-      }
-    }
-  }
-  return [...brands].sort((a, b) => a.localeCompare(b));
-}
 
 // ── Header dropdowns ────────────────────────────────────────────────────
 
@@ -396,11 +363,7 @@ function CategoryProductCard({
           {price.toFixed(0)}
           <PriceUnit> /{group.unit}</PriceUnit>
         </CardPrice>
-        {Math.max(...group.products.map((product) => product.regularDiscount ?? 0)) > 0 && (
-          <CardDiscount>
-            discount {Math.max(...group.products.map((product) => product.regularDiscount ?? 0))}%
-          </CardDiscount>
-        )}
+        <CardDiscount>{discountLabel}</CardDiscount>
         <CardTitle title={group.title}>{group.title}</CardTitle>
       </CardBody>
     </Card>
@@ -521,9 +484,9 @@ function CategorySidebar({
 // ── Screen ──────────────────────────────────────────────────────────────
 
 type CatalogState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'done'; catalog: PipesFittingCatalog };
+  | { status: 'loading'; catalog?: null }
+  | { status: 'done'; catalog: PipesFittingCatalog }
+  | { status: 'error'; catalog: null };
 
 /**
  * Category-level entry screen for Plumbing Pipes & Fittings (Flutter
@@ -552,26 +515,19 @@ export function PipesFittingCategory() {
   const classButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    let active = true;
     const controller = new AbortController();
+    setCatalogState({ status: 'loading', catalog: null });
     loadPipesFittingCatalog(controller.signal)
-      .then((catalog) => active && setCatalogState({ status: 'done', catalog }))
-      .catch((error: unknown) => {
-        if (!active) return;
-        setCatalogState({
-          status: 'error',
-          message: error instanceof Error ? error.message : 'An unexpected error occurred.',
-        });
+      .then((catalog) => {
+        if (!controller.signal.aborted) setCatalogState({ status: 'done', catalog });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCatalogState({ status: 'error', catalog: null });
       });
-    return () => {
-      active = false;
-      controller.abort();
-    };
+    return () => controller.abort();
   }, []);
 
   const catalog = catalogState.status === 'done' ? catalogState.catalog : null;
-  const filterSizes = catalog ? sizesInCatalog(catalog) : [];
-  const filterBrands = catalog ? brandsInCatalog(catalog) : [];
 
   const groups = useMemo(() => {
     if (!catalog) return [];
@@ -660,8 +616,7 @@ export function PipesFittingCategory() {
     // Drop a class the newly picked Type doesn't offer.
     if (
       selectedClass != null &&
-      catalog != null &&
-      !classesForType(catalog, typeNameForSection(next)).some((c) => classMatches(c, selectedClass))
+      !classesForType(typeNameForSection(next)).some((c) => classMatches(c, selectedClass))
     ) {
       setSelectedClass(null);
     }
@@ -749,7 +704,7 @@ export function PipesFittingCategory() {
                   },
                 ]
               : []),
-            ...(catalog ? classesForType(catalog, typeLabel) : [])
+            ...classesForType(typeLabel)
               .filter((c) => c.toLowerCase().includes(query.toLowerCase()))
               .map((c) => ({
                 key: c,
@@ -880,11 +835,11 @@ export function PipesFittingCategory() {
           <Centered>
             <CircularProgress size={36} color={theme.colors.primary} />
           </Centered>
-        ) : catalogState.status === 'error' ? (
+        ) : catalogState.status === 'error' || catalog == null ? (
           <CatalogStateMessage
             icon="pi-exclamation-circle"
             title="Unable to load catalog"
-            subtitle={catalogState.message}
+            subtitle="Please check your connection and try again."
           />
         ) : (
           <>

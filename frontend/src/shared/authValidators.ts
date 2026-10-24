@@ -3,8 +3,6 @@
  * Each validator returns an error message, or null when valid.
  */
 
-import { formatPhoneDisplay, isFirebaseTestPhone } from './phoneNumber';
-
 const MOBILE = /^[6-9]\d{9}$/;
 
 export const AuthValidators = {
@@ -17,13 +15,18 @@ export const AuthValidators = {
 
   mobile(value?: string | null): string | null {
     const v = (value ?? '').replace(/\s+/g, '');
-    const digits = v.replace(/^\+91/, '').replace(/^\+1/, '').replace(/\D/g, '');
+    const digits = v.replace(/^\+91/, '').replace(/\D/g, '');
     if (digits === '') return 'Mobile number is required';
-    if (isFirebaseTestPhone(digits) || MOBILE.test(digits)) return null;
-    return 'Enter a valid 10-digit mobile number';
+    if (!MOBILE.test(digits)) return 'Enter a valid 10-digit mobile number';
+    return null;
   },
 
   formatMobileDisplay(raw: string): string {
-    return formatPhoneDisplay(raw);
+    const digits = raw.replace(/\D/g, '');
+    const local = digits.length > 10 ? digits.slice(digits.length - 10) : digits;
+    if (local.length === 10) {
+      return `+91 ${local.slice(0, 5)} ${local.slice(5)}`;
+    }
+    return raw;
   },
 };

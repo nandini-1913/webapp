@@ -1,13 +1,10 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'styled-components';
 import { AppRoutes } from '../../../routes/appRoutes';
 import type { SignupFlowArgs } from '../../../routes/appRoutes';
 import type { HomeCategory } from '../../../services/catalog/catalogModels';
-import type { AddressLookupStatus } from '../../../session/LocationContext';
-import type { CurrentLocation } from '../../../session/LocationContext';
 import { useSession } from '../../../session/SessionContext';
+import { useCurrentLocation } from '../../../session/LocationContext';
 import { useCart } from '../../../session/CartContext';
 import { CategoryImage } from '../../../shared/CategoryImage';
 import { userInitials } from '../../../shared/userInitials';
@@ -27,6 +24,7 @@ import {
   LocationAddress,
   SearchBar,
   SearchField,
+  SearchPlaceholder,
   SearchAction,
   Actions,
   IconButton,
@@ -51,10 +49,6 @@ const capBadge = (n: number, max: number) => (n > max ? `${max}+` : `${n}`);
 
 interface HomeDashboardProps {
   categories: HomeCategory[];
-  currentLocation: CurrentLocation | null;
-  addressLookupStatus: AddressLookupStatus;
-  addressError?: string | null;
-  locationError?: string | null;
   onCategoryTap: (category: HomeCategory) => void;
 }
 
@@ -66,19 +60,17 @@ interface HomeDashboardProps {
  * fits on one screen. Tapping the location bar opens
  * ChooseLocation in update mode (confirm returns here).
  */
-export function HomeDashboard({
-  categories,
-  currentLocation,
-  addressLookupStatus,
-  addressError,
-  locationError,
-  onCategoryTap,
-}: HomeDashboardProps) {
+export function HomeDashboard({ categories, onCategoryTap }: HomeDashboardProps) {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { user } = useSession();
+  const { user, isLoggedIn } = useSession();
   const { totalQuantity: cartCount } = useCart();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { currentLocation, addressStatus } = useCurrentLocation();
+
+  const locationLabel = isLoggedIn ? 'Deliver to' : mock.HomeLocationBar.label;
+  const locationAddress =
+    currentLocation?.address ??
+    (addressStatus === 'loading' ? 'Updating your location…' : mock.HomeLocationBar.address);
 
   const openLocation = () => {
     const args: SignupFlowArgs = {
@@ -88,11 +80,7 @@ export function HomeDashboard({
     };
     navigate(AppRoutes.chooseLocation, { state: args });
   };
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (query) navigate(AppRoutes.search, { state: { query } });
-  };
+  const openSearch = () => navigate(AppRoutes.search);
 
   return (
     <Page>
@@ -154,46 +142,25 @@ export function HomeDashboard({
         </AppBarRow>
 
         <Controls>
-          <LocationBar
-            type="button"
-            title={currentLocation?.address ?? undefined}
-            onClick={openLocation}
-          >
+          <LocationBar type="button" onClick={openLocation}>
             <LocationIcon className="pi pi-map-marker" aria-hidden="true" />
             <LocationText>
-              <LocationLabel>
-                {currentLocation ? 'Current location' : 'Location permission required'}
-              </LocationLabel>
-              <LocationAddress>
-                {currentLocation?.address
-                  ? `${currentLocation.address} · © OpenStreetMap contributors`
-                  : currentLocation && addressLookupStatus === 'loading'
-                    ? 'Finding your address…'
-                    : currentLocation
-                      ? (addressError ??
-                        `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`)
-                      : (locationError ?? 'Tap to find your current location')}
-              </LocationAddress>
+              <LocationLabel>{locationLabel}</LocationLabel>
+              <LocationAddress>{locationAddress}</LocationAddress>
             </LocationText>
             <i className="pi pi-chevron-down" aria-hidden="true" />
           </LocationBar>
 
-          <SearchBar onSubmit={submitSearch}>
-            <SearchField
-              type="search"
-              aria-label="Search products"
-              placeholder={mock.HomeSearchBar.placeholder}
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <SearchAction type="submit" title="Search products" aria-label="Search products">
+          <SearchBar>
+            <SearchField type="button" onClick={openSearch}>
               <i className="pi pi-search" aria-hidden="true" />
-            </SearchAction>
+              <SearchPlaceholder>{mock.HomeSearchBar.placeholder}</SearchPlaceholder>
+            </SearchField>
             <SearchAction
               type="button"
               title={mock.HomeSearchBar.voice}
               aria-label={mock.HomeSearchBar.voice}
-              onClick={() => navigate(AppRoutes.search, { state: { searchMode: 'voice' } })}
+              onClick={openSearch}
             >
               <i className="pi pi-microphone" aria-hidden="true" />
             </SearchAction>
@@ -201,7 +168,7 @@ export function HomeDashboard({
               type="button"
               title={mock.HomeSearchBar.scan}
               aria-label={mock.HomeSearchBar.scan}
-              onClick={() => navigate(AppRoutes.search, { state: { searchMode: 'scan' } })}
+              onClick={openSearch}
             >
               <i className="pi pi-qrcode" aria-hidden="true" />
             </SearchAction>

@@ -12,14 +12,3 @@ export interface AuthUser {
   isGuest?: boolean;
   referralCode?: string | null;
 }
-
-export interface AuthResult {
-  success: boolean;
-  user?: AuthUser;
-  message?: string;
-}
-
-export const AuthResult = {
-  ok: (user: AuthUser): AuthResult => ({ success: true, user }),
-  fail: (message: string): AuthResult => ({ success: false, message }),
-};

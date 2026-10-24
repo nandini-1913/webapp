@@ -97,7 +97,7 @@ export const BrandName = styled.span`
   }
 `;
 
-export const SearchPill = styled.form`
+export const SearchPill = styled.button`
   ${resetButton}
   flex: 1;
   min-width: 0;
@@ -113,37 +113,14 @@ export const SearchPill = styled.form`
   ${({ theme }) => textStyle(theme.typography.bodyMedium)}
   color: ${({ theme }) => theme.colors.outline};
 
+  span {
+    ${ellipsis}
+  }
+
   i {
     font-size: 18px;
     color: ${({ theme }) => theme.colors.onSurface};
   }
-`;
-
-export const SearchInput = styled.input`
-  appearance: none;
-  border: 0;
-  outline: 0;
-  min-width: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  font: inherit;
-  color: ${({ theme }) => theme.colors.onSurface};
-  cursor: text;
-
-  &::placeholder {
-    ${ellipsis}
-    color: ${({ theme }) => theme.colors.outline};
-  }
-`;
-
-export const SearchSubmit = styled.button`
-  ${resetButton}
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: ${({ theme }) => theme.spacing.space8}px;
-  height: ${({ theme }) => theme.spacing.space8}px;
 `;
 
 export const HeaderActions = styled.div`

@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'styled-components';
-import { TileLayer, useMapEvents } from 'react-leaflet';
+import { TileLayer } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { AppRoutes } from '../../../routes/appRoutes';
 import type { SignupFlowArgs } from '../../../routes/appRoutes';
 import { useCurrentLocation } from '../../../session/LocationContext';
-import type { CurrentLocation } from '../../../session/LocationContext';
 import { CircularProgress } from '../../../shared/CircularProgress';
 import { LoginFlowContinueButton } from '../../../shared/LoginFlowContinueButton';
 import chooseLocationMock from './ChooseLocation.mock.json';
@@ -27,6 +26,8 @@ import {
   Sheet,
   Title,
   Subtitle,
+  SearchField,
+  SearchHint,
   AddressCard,
   Switched,
   LocatedRow,
@@ -43,66 +44,44 @@ import {
   CTA_SPINNER_STROKE,
 } from './ChooseLocation.styles';
 
-const genericMapCenter: [number, number] = [20.5937, 78.9629];
-
-function MapLocationEvents({
-  onLocationSelected,
-}: {
-  onLocationSelected: (location: CurrentLocation) => void;
-}) {
-  useMapEvents({
-    click: (event) => {
-      event.target.setView(event.latlng, event.target.getZoom(), { animate: true });
-      onLocationSelected({
-        latitude: event.latlng.lat,
-        longitude: event.latlng.lng,
-        accuracy: 0,
-        updatedAt: new Date().toISOString(),
-      });
-    },
-    dragend: (event) => {
-      const center = event.target.getCenter();
-      onLocationSelected({
-        latitude: center.lat,
-        longitude: center.lng,
-        accuracy: 0,
-        updatedAt: new Date().toISOString(),
-      });
-    },
-  });
-  return null;
-}
+const { _defaultCenter: defaultCenter } = chooseLocationMock;
 
 /** AppRouter fallback when no SignupFlowArgs are passed. */
 const fallbackArgs: SignupFlowArgs = { mobileNumber: '', fullName: '' };
 
+function splitAddress(address: string): { line1: string; line2: string } {
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length <= 1) return { line1: address, line2: '' };
+  return { line1: parts[0], line2: parts.slice(1).join(', ') };
+}
+
 /**
- * Step between signup and profession selection — lets the user drop a pin
- * on a (mocked) map or use their current location.
+ * Step between signup and profession selection — map pin + live GPS.
  */
 export function ChooseLocation() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const {
-    currentLocation,
-    addressLookupStatus,
-    addressError,
-    saveLocation,
-    requestCurrentLocation,
-  } = useCurrentLocation();
   const args = (location.state as SignupFlowArgs | null) ?? fallbackArgs;
   const isLocationUpdate = args.isLocationUpdate ?? false;
 
-  const [locating, setLocating] = useState(currentLocation == null);
-  const [located, setLocated] = useState(currentLocation != null);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const { currentLocation, addressStatus, saveLocation, requestCurrentLocation } =
+    useCurrentLocation();
+
+  const initialCenter = useMemo<[number, number]>(
+    () =>
+      currentLocation
+        ? [currentLocation.latitude, currentLocation.longitude]
+        : [defaultCenter.latitude, defaultCenter.longitude],
+    [currentLocation],
+  );
+
+  const [locating, setLocating] = useState(false);
+  const [located, setLocated] = useState(Boolean(currentLocation));
+  const [locateError, setLocateError] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const locatingRef = useRef(false);
   const mountedRef = useRef(true);
-  const initialCenter: [number, number] = currentLocation
-    ? [currentLocation.latitude, currentLocation.longitude]
-    : genericMapCenter;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -111,41 +90,60 @@ export function ChooseLocation() {
     };
   }, []);
 
-  const handleUseCurrentLocation = useCallback(async () => {
+  const syncMapCenterToLocation = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const center = map.getCenter();
+    setLocated(true);
+    saveLocation({ latitude: center.lat, longitude: center.lng });
+  }, [saveLocation]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.on('moveend', syncMapCenterToLocation);
+    return () => {
+      map.off('moveend', syncMapCenterToLocation);
+    };
+  }, [syncMapCenterToLocation, located]);
+
+  useEffect(() => {
+    if (!currentLocation || !mapRef.current) return;
+    mapRef.current.setView(
+      [currentLocation.latitude, currentLocation.longitude],
+      chooseLocationMock.locatedZoom,
+      { animate: false },
+    );
+    setLocated(true);
+  }, [currentLocation]);
+
+  const handleUseCurrentLocation = async () => {
     if (locatingRef.current) return;
     locatingRef.current = true;
     setLocating(true);
-    setLocationError(null);
+    setLocateError(null);
+
     try {
-      const selected = await requestCurrentLocation();
+      const next = await requestCurrentLocation();
       if (!mountedRef.current) return;
       mapRef.current?.setView(
-        [selected.latitude, selected.longitude],
+        [next.latitude, next.longitude],
         chooseLocationMock.locatedZoom,
-        { animate: false },
+        { animate: true },
       );
       setLocated(true);
     } catch (error) {
-      if (!mountedRef.current) return;
-      setLocationError(error instanceof Error ? error.message : 'Could not get your location.');
+      if (mountedRef.current) {
+        setLocateError(error instanceof Error ? error.message : 'Unable to read GPS location.');
+      }
     } finally {
       locatingRef.current = false;
       if (mountedRef.current) setLocating(false);
     }
-  }, [requestCurrentLocation]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void handleUseCurrentLocation(), 0);
-    return () => window.clearTimeout(timer);
-  }, [handleUseCurrentLocation]);
-
-  const handleMapLocationSelected = (selected: CurrentLocation) => {
-    saveLocation(selected);
-    setLocated(true);
-    setLocationError(null);
   };
 
   const handleContinue = () => {
+    syncMapCenterToLocation();
     if (isLocationUpdate) {
       navigate(-1);
       return;
@@ -153,10 +151,13 @@ export function ChooseLocation() {
     navigate(AppRoutes.chooseProfession, { state: args });
   };
 
+  const addressLines = currentLocation?.address
+    ? splitAddress(currentLocation.address)
+    : null;
+
   return (
     <Screen>
       <Body>
-        {/* Top half: real map surface. */}
         <MapArea>
           <MapSurface
             ref={mapRef}
@@ -164,21 +165,18 @@ export function ChooseLocation() {
             zoom={chooseLocationMock.initialZoom}
             zoomControl={false}
           >
-            <MapLocationEvents onLocationSelected={handleMapLocationSelected} />
             <TileLayer
               url={chooseLocationMock.tileLayer.urlTemplate}
               attribution={chooseLocationMock.tileLayer.attribution}
             />
           </MapSurface>
 
-          {/* Back button, same style used across the auth flow. */}
           <TopBar>
             <RoundIconButton type="button" aria-label="Back" onClick={() => navigate(-1)}>
               <i className="pi pi-arrow-left" />
             </RoundIconButton>
           </TopBar>
 
-          {/* Centered pin, fixed over the map (map pans beneath it). */}
           <PinCenter>
             <PinBounce $locating={locating}>
               <PinHalo>
@@ -190,7 +188,6 @@ export function ChooseLocation() {
             <PinShadow />
           </PinCenter>
 
-          {/* Locate-me FAB. */}
           <LocateMeButton
             type="button"
             aria-label="Use my current location"
@@ -208,14 +205,16 @@ export function ChooseLocation() {
           </LocateMeButton>
         </MapArea>
 
-        {/* Bottom half: search + location name + confirm button. */}
         <Sheet>
           <Title>Pin your location</Title>
           <Subtitle>
             Drag the map or search to place the pin exactly where you'd like deliveries and site
             visits.
           </Subtitle>
-          {locationError && <Subtitle role="alert">{locationError}</Subtitle>}
+          <SearchField>
+            <i className="pi pi-search" />
+            <SearchHint>Search area, street or landmark</SearchHint>
+          </SearchField>
           <AddressCard>
             {located ? (
               <Switched key="located">
@@ -228,21 +227,14 @@ export function ChooseLocation() {
                       Current location
                       <i className="pi pi-check-circle" />
                     </CurrentLocationLabel>
-                    <Line1 $gapTop>
-                      {addressLookupStatus === 'loading'
-                        ? 'Finding your address…'
-                        : (currentLocation?.address ??
-                          (currentLocation
-                            ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
-                            : 'Selected map location'))}
-                    </Line1>
-                    <Line2>
-                      {addressError
-                        ? `${addressError}${currentLocation ? ` Coordinates: ${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}` : ''}`
-                        : currentLocation && currentLocation.accuracy > 0
-                          ? `Location accuracy ±${Math.round(currentLocation.accuracy)} m · © OpenStreetMap contributors`
-                          : 'Tap or drag the map to adjust your location · © OpenStreetMap contributors'}
-                    </Line2>
+                    {addressStatus === 'loading' && !addressLines ? (
+                      <Line1 $gapTop>Looking up address…</Line1>
+                    ) : (
+                      <>
+                        <Line1 $gapTop>{addressLines?.line1 ?? 'Pinned map location'}</Line1>
+                        {addressLines?.line2 ? <Line2>{addressLines.line2}</Line2> : null}
+                      </>
+                    )}
                   </TextColumn>
                 </LocatedRow>
               </Switched>
@@ -262,7 +254,9 @@ export function ChooseLocation() {
                   </IconBox>
                   <TextColumn>
                     <Line1>{locating ? 'Finding your location…' : 'Use my current location'}</Line1>
-                    <Line2>Or drag the pin to fine-tune it manually</Line2>
+                    <Line2>
+                      {locateError ?? 'Or drag the map to fine-tune the pin manually'}
+                    </Line2>
                   </TextColumn>
                 </CtaButton>
               </Switched>

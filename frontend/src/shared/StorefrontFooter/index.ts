@@ -1,0 +1,1 @@
+export { StorefrontFooter } from './StorefrontFooter';

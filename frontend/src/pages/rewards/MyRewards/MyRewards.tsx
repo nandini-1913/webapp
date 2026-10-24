@@ -67,6 +67,12 @@ const formatDate = (iso: string) => {
   return `${d} ${MONTHS[m - 1]} ${y}`;
 };
 
+const fetchRewards = (userId: string) =>
+  Promise.all([
+    mockRewardService.getBalanceForUser(userId),
+    mockRewardService.getLedgerEntriesForUser(userId),
+  ]);
+
 /**
  * Flutter `MyRewardsScreen` (`/my-rewards`). Mobile keeps the Flutter app bar
  * and single column; web (≥ md) uses the storefront header with a sticky
@@ -80,21 +86,29 @@ export function MyRewards() {
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    void fetchRewards(user.id).then(([nextBalance, nextEntries]) => {
+      if (!active) return;
+      setBalance(nextBalance);
+      setEntries(nextEntries);
+    });
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
+
   // RewardController.refreshForUser
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    const [nextBalance, nextEntries] = await Promise.all([
-      mockRewardService.getBalanceForUser(user.id),
-      mockRewardService.getLedgerEntriesForUser(user.id),
-    ]);
-    setBalance(nextBalance);
-    setEntries(nextEntries);
-    setRefreshing(false);
+    try {
+      const [nextBalance, nextEntries] = await fetchRewards(user.id);
+      setBalance(nextBalance);
+      setEntries(nextEntries);
+    } finally {
+      setRefreshing(false);
+    }
   }, [user.id]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   const totalEarned = entries.filter(isEarned).reduce((sum, e) => sum + e.points, 0);
   const totalRedeemed = entries.filter((e) => !isEarned(e)).reduce((sum, e) => sum + e.points, 0);

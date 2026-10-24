@@ -96,14 +96,19 @@ export function ProfileContent({ showBack = false }: ProfileContentProps) {
     };
   }, [user]);
 
-  const showSnack = (message: string) => setSnack({ id: Date.now(), message });
+  const showSnack = (message: string) =>
+    setSnack((previous) => ({ id: (previous?.id ?? 0) + 1, message }));
   const hideSnack = useCallback(() => setSnack(null), []);
 
   const goBack = () => navigate(-1);
 
-  const signOut = () => {
-    logout();
-    navigate(AppRoutes.login, { replace: true });
+  const signOut = async () => {
+    try {
+      await logout();
+      navigate(AppRoutes.login, { replace: true });
+    } catch {
+      showSnack('Could not sign out. Please try again.');
+    }
   };
 
   const preview = (document: ProfileDocument) => {

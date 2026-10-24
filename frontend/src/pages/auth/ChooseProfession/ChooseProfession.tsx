@@ -70,7 +70,7 @@ export function ChooseProfession() {
     const option = options[selectedIndex];
 
     setFromAuth({
-      id: args.userId || `user-mobile-${args.mobileNumber}`,
+      id: `user-mobile-${args.mobileNumber}`,
       email: args.email ?? '',
       fullName: args.fullName,
       mobileNumber: args.mobileNumber,

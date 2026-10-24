@@ -109,3 +109,9 @@ export const Hint = styled.p`
   ${({ theme }) => textStyle(theme.typography.bodySmall)}
   color: ${({ theme }) => theme.colors.onSurfaceVariant};
 `;
+
+export const ErrorText = styled.p`
+  margin: ${({ theme }) => theme.spacing.space2}px 0 0;
+  ${({ theme }) => textStyle(theme.typography.bodySmall)}
+  color: ${({ theme }) => theme.colors.error};
+`;

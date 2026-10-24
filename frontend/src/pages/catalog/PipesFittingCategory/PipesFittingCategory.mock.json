@@ -11,6 +11,10 @@
     { "section": "cpvc", "label": "CPVC", "typeName": "CPVC" },
     { "section": "upvc", "label": "UPVC", "typeName": "UPVC" }
   ],
+  "_CategoryProductGroup": {
+    "unit": "pcs",
+    "discountLabel": "discount 8%"
+  },
   "_SortDropdownMenu": {
     "_options": [
       { "sort": "all", "label": "All" },
@@ -20,5 +24,30 @@
       { "sort": "priceHighLow", "label": "Price (highest first)" },
       { "sort": "ratings", "label": "Ratings" }
     ]
+  },
+  "PipeFilterSizes": {
+    "leftColumn": [
+      "15 mm",
+      "20 mm",
+      "25 mm",
+      "32 mm",
+      "40 mm",
+      "50 mm",
+      "65 mm",
+      "80 mm",
+      "100 mm",
+      "150 mm"
+    ],
+    "rightColumn": ["200 mm", "250 mm", "300 mm"]
+  },
+  "PipeFilterBrands": {
+    "names": ["Astral", "Finolex", "Cera", "Anchor", "king"]
+  },
+  "PipeFilterClasses": {
+    "byType": {
+      "UPVC": ["Sch 40", "Sch 80"],
+      "PVC": ["4 kg", "6 kg", "8 kg", "10 kg"],
+      "CPVC": ["SDR11", "SDR13.5", "Sch 40", "Sch 80"]
+    }
   }
 }

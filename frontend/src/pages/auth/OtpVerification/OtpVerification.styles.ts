@@ -118,4 +118,9 @@ export const ResendLink = styled.button`
   font-weight: 600;
   color: ${({ theme }) => theme.loginFlow.link};
   text-decoration: underline;
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.6;
+  }
 `;

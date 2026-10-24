@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, isFirebaseConfigured } from '../firebase';
 import mockData from '../mocks/mockData.json';
 import type { AuthUser } from '../services/auth/authModels';
 
@@ -63,7 +65,7 @@ interface SessionState {
 /** Equivalent of `SessionController.restore()` run before the app starts. */
 function restore(): SessionState {
   const saved = load();
-  if (saved && saved.id) return { user: saved, isLoggedIn: true };
+  if (saved?.isGuest) return { user: saved, isLoggedIn: true };
   return { user: DEMO_USER, isLoggedIn: false };
 }
 
@@ -77,7 +79,7 @@ function profileFromAuth(authUser: AuthUser): AppUserProfile {
         ? 'Guest'
         : authUser.email !== ''
           ? authUser.email.split('@')[0]
-          : DEMO_USER.name;
+          : authUser.mobileNumber ?? 'User';
   return {
     id: authUser.id,
     name,
@@ -91,13 +93,38 @@ function profileFromAuth(authUser: AuthUser): AppUserProfile {
 interface SessionContextValue extends SessionState {
   setFromProfile: (user: AppUserProfile) => void;
   setFromAuth: (authUser: AuthUser) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>(restore);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    return onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const authUser: AuthUser = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          fullName: firebaseUser.displayName,
+          mobileNumber: firebaseUser.phoneNumber,
+        };
+        const user = profileFromAuth(authUser);
+        save(user);
+        setState({ user, isLoggedIn: true });
+        return;
+      }
+
+      setState((current) => {
+        if (current.user.isGuest) return current;
+        clear();
+        return { user: DEMO_USER, isLoggedIn: false };
+      });
+    });
+  }, []);
 
   const setFromProfile = useCallback((user: AppUserProfile) => {
     save(user);
@@ -110,7 +137,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ user, isLoggedIn: true });
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (auth.currentUser) await signOut(auth);
     clear();
     setState({ user: DEMO_USER, isLoggedIn: false });
   }, []);

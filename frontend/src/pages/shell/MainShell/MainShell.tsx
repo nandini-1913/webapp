@@ -4,11 +4,12 @@ import { AppRoutes } from '../../../routes/appRoutes';
 import type { CategoryBrowseArgs } from '../../../routes/appRoutes';
 import type { HomeCategory } from '../../../services/catalog/catalogModels';
 import catalogMock from '../../../mocks/catalog_mock_data.json';
+import { useSession } from '../../../session/SessionContext';
 import { useCurrentLocation } from '../../../session/LocationContext';
 import { HomeDashboard } from '../../home/HomeDashboard';
 import { StorefrontHeader } from '../../../shared/StorefrontHeader';
 import { WebSideMenu } from '../../../shared/WebSideMenu';
-import type { WebSideMenuTab } from '../../../shared/WebSideMenu/WebSideMenu';
+import { StorefrontFooter } from '../../../shared/StorefrontFooter';
 import mock from './MainShell.mock.json';
 import {
   Shell,
@@ -25,7 +26,7 @@ import {
 } from './MainShell.styles';
 
 const tabs = mock.AppBottomNavigation.tabs;
-/** Home shows every catalog category (the side menu lists the first five only). */
+/** Shop by Category — full module grid with images (local catalog metadata). */
 const allCategories: HomeCategory[] = catalogMock.categories;
 const tabIndex = (tab?: string) =>
   Math.max(
@@ -43,60 +44,45 @@ const tabIndex = (tab?: string) =>
 export function MainShell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    currentLocation,
-    addressLookupStatus,
-    addressError: reverseGeocodeError,
-    requestCurrentLocation,
-  } = useCurrentLocation();
+  const { isLoggedIn } = useSession();
+  const { startLiveTracking, requestCurrentLocation } = useCurrentLocation();
   const requestedTab = (location.state as { tab?: string } | null)?.tab;
-  const [selection, setSelection] = useState<{ key: string; index: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const activeIndex = selection?.key === location.key ? selection.index : tabIndex(requestedTab);
-  const selectTab = (tab: WebSideMenuTab) =>
-    setSelection({ key: location.key, index: tabs.indexOf(tab) });
-
+  const [index, setIndex] = useState(() => tabIndex(requestedTab));
+  const [lastLocationKey, setLastLocationKey] = useState(location.key);
   useEffect(() => {
-    let active = true;
-    requestCurrentLocation().then(
-      () => active && setLocationError(null),
-      (error: unknown) => {
-        if (active) {
-          setLocationError(error instanceof Error ? error.message : 'Unable to get your location.');
-        }
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [requestCurrentLocation]);
+    if (!isLoggedIn) return;
+    startLiveTracking();
+    void requestCurrentLocation().catch(() => undefined);
+  }, [isLoggedIn, requestCurrentLocation, startLiveTracking]);
+
+  if (location.key !== lastLocationKey) {
+    setLastLocationKey(location.key);
+    if (requestedTab) setIndex(tabIndex(requestedTab));
+  }
 
   const openCategory = (category: HomeCategory) => {
-    const args: CategoryBrowseArgs = { categoryId: category.id };
+    const args: CategoryBrowseArgs = { categoryId: category.id, categoryName: category.name };
     navigate(AppRoutes.categoryBrowse, { state: args });
   };
   const openAiAssistant = () => navigate(AppRoutes.aiAssistant);
 
-  const showAi = activeIndex === 0;
-  const current = tabs[activeIndex];
+  const showAi = index === 0;
+  const current = tabs[index];
 
   return (
     <Shell>
       <StorefrontHeader webOnly />
 
       <ShellBody>
-        <WebSideMenu activeTab={current.tab} onSelectTab={selectTab} showAi={showAi} />
+        <WebSideMenu
+          activeTab={current.tab}
+          onSelectTab={(tab) => setIndex(tabs.indexOf(tab))}
+          showAi={showAi}
+        />
 
         <Main>
-          {activeIndex === 0 ? (
-            <HomeDashboard
-              categories={allCategories}
-              currentLocation={currentLocation}
-              addressLookupStatus={addressLookupStatus}
-              addressError={reverseGeocodeError}
-              locationError={locationError}
-              onCategoryTap={openCategory}
-            />
+          {index === 0 ? (
+            <HomeDashboard categories={allCategories} onCategoryTap={openCategory} />
           ) : (
             // Tabs 1–2 are not converted yet — Flutter `_TabScaffold` title only.
             <>
@@ -120,16 +106,18 @@ export function MainShell() {
         </Fab>
       )}
 
+      <StorefrontFooter webOnly />
+
       <BottomNav aria-label="Main menu">
         {tabs.map((tab, i) => (
           <BottomNavItem
             key={tab.tab}
             type="button"
-            $active={i === activeIndex}
-            aria-current={i === activeIndex ? 'page' : undefined}
-            onClick={() => setSelection({ key: location.key, index: i })}
+            $active={i === index}
+            aria-current={i === index ? 'page' : undefined}
+            onClick={() => setIndex(i)}
           >
-            <BottomNavIndicator $active={i === activeIndex}>
+            <BottomNavIndicator $active={i === index}>
               <i className={`pi ${tab.icon}`} aria-hidden="true" />
             </BottomNavIndicator>
             <BottomNavLabel>{tab.label}</BottomNavLabel>

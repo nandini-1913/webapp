@@ -4,10 +4,10 @@ import { AppRoutes } from '../../../routes/appRoutes';
 import type { OtpVerificationArgs, SignupFlowArgs } from '../../../routes/appRoutes';
 import { useSession } from '../../../session/SessionContext';
 import {
-  confirmFirebaseOtp,
+  confirmPhoneOtp,
   firebaseAuthMessage,
-  sendFirebaseOtp,
-  userFromFirebase,
+  sendPhoneOtp,
+  toAuthUser,
 } from '../../../services/auth/phoneAuth';
 import { AuthOtpFields } from '../../../shared/AuthOtpFields';
 import type { AuthOtpFieldsHandle } from '../../../shared/AuthOtpFields';
@@ -17,7 +17,6 @@ import { LoginFlowContinueButton } from '../../../shared/LoginFlowContinueButton
 import { SnackBar } from '../../../shared/SnackBar';
 import { AuthWebLayout } from '../../../shared/AuthWebLayout';
 import mockData from '../../../mocks/mockData.json';
-import otpMock from './OtpVerification.mock.json';
 import {
   Screen,
   Content,
@@ -37,18 +36,15 @@ import {
 
 const { otpLength, otpResendSeconds } = mockData.appConstants;
 
-// app_router.dart falls back to these args when none are passed.
-const DEFAULT_ARGS = otpMock.defaultArgs as OtpVerificationArgs;
-
 /** Step 2 — OTP verification (login flow). */
 export function OtpVerification() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setFromAuth } = useSession();
 
-  const args = (location.state as OtpVerificationArgs | null) ?? DEFAULT_ARGS;
-  const contact = args.contactDisplay;
-  const rawMobile = args.mobileNumber ?? contact.replace(/\D/g, '').replace(/^91/, '');
+  const args = location.state as OtpVerificationArgs | null;
+  const contact = args?.contactDisplay ?? '';
+  const rawMobile = args?.mobileNumber ?? '';
 
   const otpRef = useRef<AuthOtpFieldsHandle>(null);
   const [otp, setOtp] = useState('');
@@ -65,6 +61,10 @@ export function OtpVerification() {
       mounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!args?.mobileNumber) navigate(AppRoutes.login, { replace: true });
+  }, [args?.mobileNumber, navigate]);
 
   // Timer.periodic(1s) counting down to 0.
   useEffect(() => {
@@ -90,51 +90,41 @@ export function OtpVerification() {
     setError(null);
 
     try {
-      const user = await confirmFirebaseOtp(value);
+      const result = await confirmPhoneOtp(value);
       if (!mounted.current) return;
+      setFromAuth(toAuthUser(result.user));
       setLoading(false);
 
-      switch (args.purpose) {
-        case 'mobileLogin':
-          setFromAuth(userFromFirebase(user, rawMobile));
-          navigate(AppRoutes.main, { replace: true });
-          return;
-        case 'registration': {
-          const authUser = userFromFirebase(user, rawMobile);
-          setFromAuth(authUser);
-          const signupArgs: SignupFlowArgs = {
-            mobileNumber: authUser.mobileNumber ?? rawMobile,
-            fullName: authUser.fullName ?? '',
-            userId: authUser.id,
-          };
-          navigate(AppRoutes.createAccount, { replace: true, state: signupArgs });
-          return;
-        }
+      if (result.isNewUser) {
+        const signupArgs: SignupFlowArgs = { mobileNumber: rawMobile, fullName: '' };
+        navigate(AppRoutes.createAccount, { replace: true, state: signupArgs });
+        return;
       }
-    } catch (error) {
+
+      navigate(AppRoutes.main, { replace: true });
+    } catch (verifyError) {
       if (!mounted.current) return;
       setLoading(false);
-      setError(firebaseAuthMessage(error));
+      // As in Flutter, clear() reports '' through onChanged, which also resets the error.
       otpRef.current?.clear();
+      setError(firebaseAuthMessage(verifyError));
     }
   };
 
   const resend = async () => {
-    try {
-      await sendFirebaseOtp(rawMobile);
-    } catch (error) {
-      if (!mounted.current) return;
-      setSnackBar({ id: Date.now(), message: firebaseAuthMessage(error) });
-      return;
-    }
-    if (!mounted.current) return;
-    otpRef.current?.clear();
+    setLoading(true);
     setError(null);
-    startTimer();
-    setSnackBar({
-      id: Date.now(),
-      message: 'Verification code resent. Enter the OTP set for this test number in Firebase.',
-    });
+    try {
+      await sendPhoneOtp(rawMobile);
+      if (!mounted.current) return;
+      otpRef.current?.clear();
+      startTimer();
+      setSnackBar((previous) => ({ id: (previous?.id ?? 0) + 1, message: 'Verification code resent.' }));
+    } catch (resendError) {
+      if (mounted.current) setError(firebaseAuthMessage(resendError));
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
   };
 
   return (
@@ -174,12 +164,13 @@ export function OtpVerification() {
             {seconds > 0 ? (
               `Resend OTP in 0:${String(seconds).padStart(2, '0')}`
             ) : (
-              <ResendLink type="button" onClick={resend}>
+              <ResendLink type="button" disabled={loading} onClick={resend}>
                 Resend OTP
               </ResendLink>
             )}
           </Resend>
         </Content>
+        <div id="firebase-recaptcha" />
         {snackBar && (
           <SnackBar key={snackBar.id} message={snackBar.message} onDismissed={dismissSnackBar} />
         )}

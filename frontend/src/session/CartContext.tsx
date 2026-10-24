@@ -39,7 +39,7 @@ interface CartContextValue {
   removeCoupon: () => void;
 }
 
-export const cartPricing = cartMock._pricing;
+const cartPricing = cartMock._pricing;
 const coupons = cartMock._coupons as CartCoupon[];
 
 /**

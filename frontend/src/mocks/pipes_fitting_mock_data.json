@@ -1,0 +1,291 @@
+{
+  "category": "Pipes & Fitting",
+  "types": [
+    {
+      "type": "UPVC",
+      "subCategories": [
+        {
+          "subCategory": "Pipes",
+          "classes": [
+            {
+              "class": "Sch 40",
+              "products": [
+                {
+                  "brand": "Astral",
+                  "productName": "Astral UPVC Pipe, Sch 40, 15 MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "15 MM (½\")",
+                  "productCode": null,
+                  "stdPkg": null,
+                  "mrp": 486
+                },
+                {
+                  "brand": "Astral",
+                  "productName": "Astral UPVC Pipe, Sch 40, 20 MM (¾\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "20 MM (¾\")",
+                  "productCode": null,
+                  "stdPkg": null,
+                  "mrp": 618
+                },
+                {
+                  "brand": "King",
+                  "productName": "King UPVC Pipe, Sch 40, 15 MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "15 MM (½\")",
+                  "productCode": null,
+                  "stdPkg": null,
+                  "mrp": 378.54
+                }
+              ]
+            },
+            {
+              "class": "Sch 80",
+              "products": [
+                {
+                  "brand": "Astral",
+                  "productName": "Astral UPVC Pipe, Sch 80, 15 MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "15 MM (½\")",
+                  "productCode": null,
+                  "stdPkg": null,
+                  "mrp": 612
+                },
+                {
+                  "brand": "King",
+                  "productName": "King UPVC Pipe, Sch 80, 15 MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "15 MM (½\")",
+                  "productCode": null,
+                  "stdPkg": null,
+                  "mrp": 453.78
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PVC",
+      "subCategories": [
+        {
+          "subCategory": "Pipe",
+          "classes": [
+            {
+              "class": "4 kg",
+              "products": [
+                {
+                  "brand": "FINOLEX",
+                  "productName": "FINOLEX PVC Pipe, 4 kg, 63MM (2\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "63MM (2\")",
+                  "mrp": 834
+                },
+                {
+                  "brand": "Supreme",
+                  "productName": "Supreme PVC Pipe, 4kg, 63MM (2\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "63MM (2\")",
+                  "mrp": 631
+                },
+                {
+                  "brand": "Astral",
+                  "productName": "Astral PVC Pipe, 4kg, 63MM (2\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "63MM (2\")",
+                  "mrp": 822
+                },
+                {
+                  "brand": "King",
+                  "productName": "King PVC Pipe, 4kg, 63MM (2\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "63MM (2\")",
+                  "mrp": 705.6
+                }
+              ]
+            },
+            {
+              "class": "6 kg",
+              "products": [
+                {
+                  "brand": "FINOLEX",
+                  "productName": "FINOLEX PVC Pipe, 6 kg, 40MM (1¼\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "40MM (1¼\")",
+                  "mrp": 504
+                },
+                {
+                  "brand": "Supreme",
+                  "productName": "Supreme PVC Pipe, 6kg, 40MM (1¼\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "40MM (1¼\")",
+                  "mrp": 370
+                },
+                {
+                  "brand": "Astral",
+                  "productName": "Astral PVC Pipe, 6kg, 40MM (1¼\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "40MM (1¼\")",
+                  "mrp": 492
+                }
+              ]
+            },
+            {
+              "class": "8 kg",
+              "products": [
+                {
+                  "brand": "Astral",
+                  "productName": "Astral PVC Pipe, 8 kg, 25 MM (¾\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "25 MM (¾\")",
+                  "mrp": 270
+                }
+              ]
+            },
+            {
+              "class": "10 kg",
+              "products": [
+                {
+                  "brand": "FINOLEX",
+                  "productName": "FINOLEX PVC Pipe, 10 kg, 20MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "20MM (½\")",
+                  "mrp": 312
+                },
+                {
+                  "brand": "Supreme",
+                  "productName": "Supreme PVC Pipe, 10kg, 20MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "20MM (½\")",
+                  "mrp": 158
+                },
+                {
+                  "brand": "King",
+                  "productName": "King PVC Pipe, 10kg, 20MM (½\") 6 Mtr",
+                  "length": "6 Mtr",
+                  "size": "20MM (½\")",
+                  "mrp": 163.8
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CPVC",
+      "subCategories": [
+        {
+          "subCategory": "Pipes",
+          "classes": [
+            {
+              "class": "SDR11",
+              "products": [
+                {
+                  "brand": "ASTRAL",
+                  "productName": "ASTRAL CPVC Pipe, SDR11, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 520
+                },
+                {
+                  "brand": "FINOLEX",
+                  "productName": "FINOLEX CPVC Pipe, SDR11, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 410
+                },
+                {
+                  "brand": "SUPREME",
+                  "productName": "SUPREME CPVC Pipe, SDR11, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 460
+                },
+                {
+                  "brand": "KING",
+                  "productName": "KING CPVC Pipe, SDR11, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 520
+                }
+              ]
+            },
+            {
+              "class": "SDR13.5",
+              "products": [
+                {
+                  "brand": "ASTRAL",
+                  "productName": "ASTRAL CPVC Pipe, SDR13.5, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 455
+                },
+                {
+                  "brand": "FINOLEX",
+                  "productName": "FINOLEX CPVC Pipe, SDR13.5, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 350
+                },
+                {
+                  "brand": "SUPREME",
+                  "productName": "SUPREME CPVC Pipe, SDR13.5, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 400
+                },
+                {
+                  "brand": "KING",
+                  "productName": "KING CPVC Pipe, SDR13.5, 15 MM (½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "15 MM (½\")",
+                  "mrp": 455
+                }
+              ]
+            },
+            {
+              "class": "Sch 40",
+              "products": [
+                {
+                  "brand": "ASTRAL",
+                  "productName": "ASTRAL CPVC Pipe, Sch 40, 65 MM (2½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "65 MM (2½\")",
+                  "mrp": 7525
+                },
+                {
+                  "brand": "KING",
+                  "productName": "KING CPVC Pipe, Sch 40, 65 MM (2½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "65 MM (2½\")",
+                  "mrp": 7525
+                }
+              ]
+            },
+            {
+              "class": "Sch 80",
+              "products": [
+                {
+                  "brand": "ASTRAL",
+                  "productName": "ASTRAL CPVC Pipe, Sch 80, 65 MM (2½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "65 MM (2½\")",
+                  "mrp": 10285
+                },
+                {
+                  "brand": "KING",
+                  "productName": "KING CPVC Pipe, Sch 80, 65 MM (2½\") 5 Mtr",
+                  "length": "5 Mtr",
+                  "size": "65 MM (2½\")",
+                  "mrp": 10285
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

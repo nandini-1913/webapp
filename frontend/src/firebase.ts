@@ -1,24 +1,30 @@
-import { initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-const env = (value: string | undefined) => value?.trim() ?? '';
-
 const firebaseConfig = {
-  apiKey: env(import.meta.env.VITE_FIREBASE_API_KEY),
-  authDomain: env(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
-  projectId: env(import.meta.env.VITE_FIREBASE_PROJECT_ID),
-  storageBucket: env(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
-  messagingSenderId: env(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
-  appId: env(import.meta.env.VITE_FIREBASE_APP_ID),
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim() ?? '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim() ?? '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim() ?? '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET?.trim() ?? '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim() ?? '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID?.trim() ?? '',
 };
 
-const app = initializeApp(firebaseConfig);
+export const isFirebaseConfigured = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+].every(Boolean);
+
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Localhost cannot complete Firebase's reCAPTCHA app check (auth/invalid-app-credential).
-// In dev, skip that check so console test numbers still require their registered OTP.
-// Real numbers keep working in a production build, where this stays off.
-if (import.meta.env.DEV) {
-  auth.settings.appVerificationDisabledForTesting = true;
+export function requireFirebaseConfig() {
+  if (!isFirebaseConfigured) {
+    throw new Error(
+      'Firebase is not configured. Set the VITE_FIREBASE_* values in frontend/.env.local.',
+    );
+  }
 }

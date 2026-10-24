@@ -1,0 +1,39 @@
+{
+  "_brand": {
+    "name": "BuildMate",
+    "accent": " 24x7",
+    "logo": "/assets/images/branding/buildmate_logo.png",
+    "tagline": "Home Building & Interior Material Delivery, 24x7"
+  },
+  "_social": [
+    { "label": "Instagram", "icon": "pi-instagram", "href": "https://www.instagram.com/" },
+    { "label": "YouTube", "icon": "pi-youtube", "href": "https://www.youtube.com/" },
+    { "label": "Facebook", "icon": "pi-facebook", "href": "https://www.facebook.com/" }
+  ],
+  "_companyTitle": "Company",
+  "_companyLinks": [
+    { "label": "About us", "route": "about" },
+    { "label": "Contact us", "route": "contact" },
+    { "label": "Privacy policy", "route": "privacyPolicy" },
+    { "label": "Terms & Conditions", "route": "terms" },
+    { "label": "Cancellation & Refunds", "route": "cancellationRefunds" },
+    { "label": "Shipping & Delivery", "route": "shippingDelivery" }
+  ],
+  "_categoriesTitle": "Categories",
+  "_downloadTitle": "Download App",
+  "_stores": [
+    {
+      "label": "Google Play",
+      "caption": "GET IT ON",
+      "icon": "pi-google",
+      "href": "https://play.google.com/store"
+    },
+    {
+      "label": "App Store",
+      "caption": "Download on the",
+      "icon": "pi-apple",
+      "href": "https://www.apple.com/app-store/"
+    }
+  ],
+  "_copyright": "BuildMate 24x7. All rights reserved."
+}

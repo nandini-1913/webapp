@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { AppRoutes } from '../../../routes/appRoutes';
 import type { OtpVerificationArgs } from '../../../routes/appRoutes';
 import { useSession } from '../../../session/SessionContext';
-import { mockAuthService } from '../../../services/auth/mockAuthService';
-import { firebaseAuthMessage, sendFirebaseOtp } from '../../../services/auth/phoneAuth';
+import { firebaseAuthMessage, sendPhoneOtp } from '../../../services/auth/phoneAuth';
+import type { AuthUser } from '../../../services/auth/authModels';
 import { AuthValidators } from '../../../shared/authValidators';
 import { LoginFlowIconBadge } from '../../../shared/LoginFlowIconBadge';
 import { LoginFlowModeToggle } from '../../../shared/LoginFlowModeToggle';
 import { LoginFlowPhoneField } from '../../../shared/LoginFlowPhoneField';
 import { LoginFlowContinueButton } from '../../../shared/LoginFlowContinueButton';
 import { LoginFlowTermsFooter } from '../../../shared/LoginFlowTermsFooter';
-import { SnackBar } from '../../../shared/SnackBar';
 import { AuthWebLayout } from '../../../shared/AuthWebLayout';
 import mockData from '../../../mocks/mockData.json';
 import loginMock from './Login.mock.json';
@@ -25,6 +24,7 @@ import {
   Subtitle,
   FieldLabel,
   Hint,
+  ErrorText,
 } from './Login.styles';
 
 const { appName } = mockData.appConstants;
@@ -36,7 +36,7 @@ export function Login() {
   const [mobile, setMobile] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
-  const [snackBar, setSnackBar] = useState<{ id: number; message: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Flutter `mounted` check after awaits.
   const mounted = useRef(true);
@@ -54,33 +54,27 @@ export function Login() {
     if (AuthValidators.mobile(value) !== null) return;
 
     setLoading(true);
+    setError(null);
     try {
-      await sendFirebaseOtp(value);
-    } catch (error) {
+      await sendPhoneOtp(value);
       if (!mounted.current) return;
-      setLoading(false);
-      setSnackBar({ id: Date.now(), message: firebaseAuthMessage(error) });
-      return;
-    }
-    if (!mounted.current) return;
-    setLoading(false);
 
-    const args: OtpVerificationArgs = {
-      contactDisplay: AuthValidators.formatMobileDisplay(value),
-      purpose: isLogin ? 'mobileLogin' : 'registration',
-      mobileNumber: value,
-    };
-    navigate(AppRoutes.otpVerification, { state: args });
+      const args: OtpVerificationArgs = {
+        contactDisplay: AuthValidators.formatMobileDisplay(value),
+        mobileNumber: value,
+      };
+      navigate(AppRoutes.otpVerification, { state: args });
+    } catch (sendError) {
+      if (mounted.current) setError(firebaseAuthMessage(sendError));
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
   };
 
-  const handleSkipLogin = async () => {
-    const result = await mockAuthService.continueAsGuest();
-    if (!mounted.current) return;
-    if (result.success && result.user) {
-      setFromAuth(result.user);
-      // pushNamedAndRemoveUntil(main, (_) => false)
-      navigate(AppRoutes.main, { replace: true });
-    }
+  const handleSkipLogin = () => {
+    const guest: AuthUser = { id: 'guest', email: '', fullName: 'Guest', isGuest: true };
+    setFromAuth(guest);
+    navigate(AppRoutes.main, { replace: true });
   };
 
   return (
@@ -103,24 +97,25 @@ export function Login() {
           </Subtitle>
           <LoginFlowModeToggle isLogin={isLogin} onChanged={setIsLogin} />
           <FieldLabel>Mobile Number</FieldLabel>
-          <LoginFlowPhoneField value={mobile} onChanged={setMobile} />
+          <LoginFlowPhoneField
+            value={mobile}
+            onChanged={(value) => {
+              setMobile(value);
+              setError(null);
+            }}
+          />
           <Hint>We'll send a 6-digit OTP to verify this number</Hint>
+          {error && <ErrorText role="alert">{error}</ErrorText>}
           <LoginFlowContinueButton
             label="Send OTP"
             enabled={canContinue}
             loading={loading}
             onPressed={handleContinue}
           />
+          <div id="firebase-recaptcha" />
           <Spacer $flex={3} />
           <LoginFlowTermsFooter />
         </Content>
-        {snackBar && (
-          <SnackBar
-            key={snackBar.id}
-            message={snackBar.message}
-            onDismissed={() => setSnackBar(null)}
-          />
-        )}
       </Screen>
     </AuthWebLayout>
   );
